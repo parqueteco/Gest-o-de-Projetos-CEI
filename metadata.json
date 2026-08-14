@@ -1,0 +1,6 @@
+{
+  "name": "Gestão de Projetos CEI-MCR",
+  "description": "Dashboard interativo e visão hierárquica (AppSheet) para o projeto CEI-MCR.",
+  "requestFramePermissions": [],
+  "majorCapabilities": ["MAJOR_CAPABILITY_SERVER_SIDE_GEMINI_API"]
+}
