@@ -1,4 +1,4 @@
-import React, { useState, useMemo } from 'react';
+import React, { useState, useMemo, useEffect } from 'react';
 import { Acao, Atividade, Subatividade } from '../types';
 import { ExternalLink, AlertTriangle, Edit2, Trash2, Plus, ChevronDown, ChevronRight, CheckCircle2, Circle, FileText, Target, MessageSquare, Link as LinkIcon, ArrowUp, ArrowDown } from 'lucide-react';
 import { isLate } from './Dashboard';
@@ -8,6 +8,8 @@ import { DiarioBordo, parseObservacao } from './DiarioBordo';
 import { supabase } from '../lib/supabaseClient';
 import { motion, AnimatePresence } from 'motion/react';
 
+import { TargetHighlight } from '../App';
+
 interface HierarchyViewProps {
   acoes: Acao[];
   atividades: Atividade[];
@@ -15,9 +17,11 @@ interface HierarchyViewProps {
   onUpdateSubatividadeStatus?: (sub: Subatividade, newStatus: string) => void;
   onAddSubatividade?: (atividadeId: string, nome: string) => void;
   onDataChanged: () => void;
+  targetHighlight?: TargetHighlight | null;
+  headerAction?: React.ReactNode;
 }
 
-export default function HierarchyView({ acoes, atividades, subatividades, onUpdateSubatividadeStatus, onDataChanged }: HierarchyViewProps) {
+export default function HierarchyView({ acoes, atividades, subatividades, onUpdateSubatividadeStatus, onDataChanged, targetHighlight, headerAction }: HierarchyViewProps) {
   const [expandedAcoes, setExpandedAcoes] = useState<Set<string>>(new Set());
   const [expandedAtividades, setExpandedAtividades] = useState<Set<string>>(new Set());
   const [expandedSubatividades, setExpandedSubatividades] = useState<Set<string>>(new Set());
@@ -31,6 +35,57 @@ export default function HierarchyView({ acoes, atividades, subatividades, onUpda
   const [editingSub, setEditingSub] = useState<Subatividade | null>(null);
 
   const [activeAcaoId, setActiveAcaoId] = useState<string | null>(null);
+
+  useEffect(() => {
+    if (targetHighlight) {
+      try {
+        // 1. Force state expansion
+        if (targetHighlight.acaoId) {
+          setExpandedAcoes(prev => {
+            const next = new Set(prev);
+            next.add(targetHighlight.acaoId!);
+            return next;
+          });
+        }
+        if (targetHighlight.atividadeId) {
+          setExpandedAtividades(prev => {
+            const next = new Set(prev);
+            next.add(targetHighlight.atividadeId!);
+            return next;
+          });
+        }
+        if (targetHighlight.subatividadeId) {
+          setExpandedSubatividades(prev => {
+            const next = new Set(prev);
+            next.add(targetHighlight.subatividadeId!);
+            return next;
+          });
+        }
+
+        // 2. Simple navigation with basic delay
+        let targetId = null;
+        if (targetHighlight.comentarioId) targetId = `comentario-${targetHighlight.comentarioId}`;
+        else if (targetHighlight.subatividadeId) targetId = `sub-${targetHighlight.subatividadeId}`;
+        else if (targetHighlight.atividadeId) targetId = `ativ-${targetHighlight.atividadeId}`;
+        else if (targetHighlight.acaoId) targetId = `acao-${targetHighlight.acaoId}`;
+
+        if (targetId) {
+          setTimeout(() => {
+            const element = document.getElementById(targetId);
+            if (element) {
+              element.scrollIntoView({ behavior: 'smooth', block: 'center' });
+              element.classList.add('ring-2', 'ring-sky-500', 'ring-offset-2', 'ring-offset-slate-900', 'transition-all', 'duration-500', 'bg-sky-500/10');
+              setTimeout(() => {
+                element.classList.remove('ring-2', 'ring-sky-500', 'ring-offset-2', 'ring-offset-slate-900', 'bg-sky-500/10');
+              }, 2500);
+            }
+          }, 300); // Allow React time to render expanded items
+        }
+      } catch (err) {
+        console.error("Erro ao expandir hierarquia:", err);
+      }
+    }
+  }, [targetHighlight]);
   const [activeAtividadeId, setActiveAtividadeId] = useState<string | null>(null);
   const [insertOrderSub, setInsertOrderSub] = useState<string | null>(null);
 
@@ -281,16 +336,19 @@ export default function HierarchyView({ acoes, atividades, subatividades, onUpda
 
   return (
     <section className="flex-1 overflow-y-auto pr-2 pb-12 flex flex-col gap-3 relative">
-      <div className="flex items-center justify-between bg-slate-900/50 p-4 rounded-lg border border-slate-800 sticky top-0 z-10 backdrop-blur-sm">
-        <h2 className="text-[12px] font-black text-sky-500 uppercase tracking-widest flex items-center gap-2">
+      <div className="flex items-start justify-between gap-4 bg-slate-900/50 p-4 rounded-lg border border-slate-800 sticky top-0 z-10 backdrop-blur-sm">
+        <h2 className="text-[12px] font-black text-sky-500 uppercase tracking-widest flex items-center gap-2 whitespace-nowrap mt-2">
           Visão Geral
         </h2>
-        <button 
-          onClick={() => { setEditingAcao(null); setAcaoModalOpen(true); }} 
-          className="flex items-center gap-1 px-3 py-1.5 bg-sky-500/10 text-sky-400 hover:bg-sky-500/20 rounded font-black text-[10px] uppercase transition-colors border border-sky-500/20"
-        >
-          <Plus className="w-3 h-3" /> Nova Ação
-        </button>
+        <div className="flex flex-col items-end gap-2 ml-auto">
+          {headerAction && <div className="shrink-0">{headerAction}</div>}
+          <button 
+            onClick={() => { setEditingAcao(null); setAcaoModalOpen(true); }} 
+            className="flex items-center justify-center gap-1 px-3 py-1.5 bg-sky-500/10 text-sky-400 hover:bg-sky-500/20 rounded font-black text-[10px] uppercase transition-colors border border-sky-500/20 shrink-0 w-full sm:w-auto"
+          >
+            <Plus className="w-3 h-3" /> Nova Ação
+          </button>
+        </div>
       </div>
 
       <div className="space-y-6">
@@ -316,7 +374,7 @@ export default function HierarchyView({ acoes, atividades, subatividades, onUpda
           const progresso = totalAtiv === 0 ? 0 : Math.round((doneAtiv / totalAtiv) * 100);
 
           return (
-            <div key={acao.IDAcao} className="bg-slate-900 border border-slate-800 rounded-lg overflow-hidden flex flex-col">
+            <div id={`acao-${acao.IDAcao}`} key={acao.IDAcao} className="bg-slate-900 border border-slate-800 rounded-lg overflow-hidden flex flex-col">
               {/* Ação Header */}
               <div 
                 className={`p-4 flex items-center justify-between cursor-pointer transition-colors group ${isExpanded ? 'bg-slate-800/80 border-b border-slate-800' : 'hover:bg-slate-800/50'}`}
@@ -408,7 +466,7 @@ export default function HierarchyView({ acoes, atividades, subatividades, onUpda
                         const late = isLate(ativ.DataFim, ativ.Status);
 
                         return (
-                          <div key={ativ.IDAtividade} className={`relative group/row border ${isAtivExpanded ? 'border-slate-700' : 'border-slate-800/80'} rounded flex flex-col bg-slate-950/40 transition-colors`}>
+                          <div id={`ativ-${ativ.IDAtividade}`} key={ativ.IDAtividade} className={`relative group/row border ${isAtivExpanded ? 'border-slate-700' : 'border-slate-800/80'} rounded flex flex-col bg-slate-950/40 transition-colors`}>
                             {idx > 0 && (
                               <div className="absolute -top-1.5 left-0 right-0 h-3 flex items-center justify-center opacity-0 group-hover/row:opacity-100 transition-opacity z-10">
                                 <div className="absolute h-[1px] w-full bg-sky-500/50"></div>
@@ -577,7 +635,7 @@ export default function HierarchyView({ acoes, atividades, subatividades, onUpda
                                           else if (sub.Status?.trim() === 'Em espera') { statusBorderColor = 'border-fuchsia-500/50'; statusColor = 'text-fuchsia-400'; }
 
                                           return (
-                                            <div key={sub.IDSubatividade} className="relative group/row">
+                                            <div id={`sub-${sub.IDSubatividade}`} key={sub.IDSubatividade} className="relative group/row">
                                               {idx > 0 && (
                                                 <div className="absolute -top-1.5 left-0 right-0 h-3 flex items-center justify-center opacity-0 group-hover/row:opacity-100 transition-opacity z-10">
                                                   <div className="absolute h-[1px] w-full bg-sky-500/50"></div>

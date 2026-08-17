@@ -5,6 +5,7 @@ import { MessageSquare, Plus, Clock, Edit2, Trash2 } from 'lucide-react';
 export interface LogEntry {
   date: string;
   text: string;
+  author?: string;
 }
 
 export function parseObservacao(obs?: string): LogEntry[] {
@@ -47,9 +48,18 @@ export function DiarioBordo({ id, table, idField, rawObservacao, onDataChanged }
     if (!newNote.trim()) return;
     setIsSubmitting(true);
     
+    let author = 'Usuário';
+    try {
+      const { data: { session } } = await supabase.auth.getSession();
+      if (session?.user) {
+        author = session.user.user_metadata?.full_name || session.user.email?.split('@')[0] || 'Usuário';
+      }
+    } catch(e) {}
+    
     const newLog: LogEntry = {
       date: new Date().toISOString(),
-      text: newNote.trim()
+      text: newNote.trim(),
+      author: author
     };
     
     const updatedLogs = [newLog, ...logs];
@@ -174,9 +184,18 @@ export function DiarioBordo({ id, table, idField, rawObservacao, onDataChanged }
           <div className="text-xs text-slate-500 italic">Nenhuma observação registrada.</div>
         ) : (
           logs.map((log, index) => (
-            <div key={index} className="flex flex-col gap-1 border-l-2 border-amber-500/20 pl-3 py-1 relative group">
+            <div id={`comentario-${log.date}`} key={index} className="flex flex-col gap-1 border-l-2 border-amber-500/20 pl-3 py-1 relative group">
               <div className="flex items-center justify-between">
-                <span className="text-[10px] font-black text-slate-500 flex items-center gap-1"><Clock className="w-3 h-3" /> {formatDate(log.date)}</span>
+                <div className="flex items-center gap-2">
+                  {log.author && (
+                    <span className="text-[10px] font-black text-slate-300 bg-slate-800 px-1.5 py-0.5 rounded flex items-center gap-1">
+                      👤 {log.author}
+                    </span>
+                  )}
+                  <span className="text-[10px] font-black text-slate-500 flex items-center gap-1">
+                    <Clock className="w-3 h-3" /> {formatDate(log.date)}
+                  </span>
+                </div>
                 {editingIndex !== index && (
                   <div className="flex items-center gap-1 opacity-0 group-hover:opacity-100 transition-opacity">
                     <button 

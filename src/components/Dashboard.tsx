@@ -6,6 +6,7 @@ interface DashboardProps {
   acoes: Acao[];
   atividades: Atividade[];
   subatividades: Subatividade[];
+  headerAction?: React.ReactNode;
 }
 
 const getResponsaveis = (respString?: string | null) => {
@@ -40,7 +41,7 @@ export const isLate = (dataFim?: string, status?: string) => {
   return date.getTime() < new Date().getTime();
 };
 
-export default function Dashboard({ acoes, atividades, subatividades }: DashboardProps) {
+export default function Dashboard({ acoes, atividades, subatividades, headerAction }: DashboardProps) {
   const [viewMode, setViewMode] = useState<'Atividades' | 'Subatividades' | 'Todas'>('Todas');
 
   const combinedTasks = useMemo(() => {
@@ -107,8 +108,8 @@ export default function Dashboard({ acoes, atividades, subatividades }: Dashboar
     <div className="flex flex-col h-full gap-6">
       {/* Header: Dashboard KPIs */}
       <header className="flex flex-col gap-6 flex-shrink-0">
-        <div className="flex justify-between items-end">
-          <div className="flex gap-12">
+        <div className="flex justify-between items-start gap-4">
+          <div className="flex gap-12 items-end flex-wrap">
             <div>
               <p className="text-[10px] uppercase tracking-widest text-slate-500 font-black mb-1">Ações Totais</p>
               <p className="text-4xl font-black text-slate-100">{acoes.length}</p>

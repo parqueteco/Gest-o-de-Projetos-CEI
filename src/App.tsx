@@ -23,9 +23,20 @@ import {
 import { Acao, Atividade, Subatividade } from './types';
 import Dashboard, { isLate } from './components/Dashboard';
 import HierarchyView from './components/HierarchyView';
+import { ControlePrazos } from './components/ControlePrazos';
+import { ControlePrazos } from './components/ControlePrazos';
 import { supabase } from './lib/supabaseClient';
 import { Login } from './components/Login';
 import { UserProfileModal } from './components/UserProfileModal';
+import { Notifications } from './components/Notifications';
+
+export interface TargetHighlight {
+  acaoId: string | null;
+  atividadeId: string | null;
+  subatividadeId: string | null;
+  comentarioId: string | null;
+  timestamp: number;
+}
 
 export default function App() {
   const [acoes, setAcoes] = useState<Acao[]>([]);
@@ -55,7 +66,13 @@ export default function App() {
     await supabase.auth.signOut();
   };
 
-  const [activeTab, setActiveTab] = useState<'dashboard' | 'hierarchy'>('dashboard');
+  const [activeTab, setActiveTab] = useState<'dashboard' | 'hierarchy' | 'prazos'>('dashboard');
+  const [targetHighlight, setTargetHighlight] = useState<TargetHighlight | null>(null);
+
+  const handleNotificationClick = (acaoId: string | null, atividadeId: string | null, subatividadeId: string | null, comentarioId: string | null = null) => {
+    setActiveTab('hierarchy');
+    setTargetHighlight({ acaoId, atividadeId, subatividadeId, comentarioId, timestamp: Date.now() });
+  };
   const [theme, setTheme] = useState<'navy' | 'light' | 'oled'>(() => {
     return (localStorage.getItem('app-theme') as 'navy' | 'light' | 'oled') || 'navy';
   });
@@ -442,6 +459,15 @@ export default function App() {
             <ListTree className="w-4 h-4" />
             VISÃO GERAL
           </button>
+          <button
+            onClick={() => setActiveTab('prazos')}
+            className={`flex items-center gap-3 px-3 py-2 rounded-sm text-xs font-black transition-colors ${
+              activeTab === 'prazos' ? 'bg-sky-500 text-slate-950' : 'border border-slate-700 text-slate-400 hover:border-sky-500'
+            }`}
+          >
+            <Clock className="w-4 h-4" />
+            CONTROLE DE PRAZOS
+          </button>
         </div>
 
         <div className="flex-1 px-4 py-2">
@@ -581,23 +607,53 @@ export default function App() {
       </aside>
 
       {/* Main Content */}
-      <main className="flex-1 ml-72 h-screen overflow-hidden flex flex-col p-8">
-        {activeTab === 'dashboard' ? (
+      <main className="flex-1 ml-72 h-screen overflow-hidden flex flex-col relative">
+        <div className="flex-1 overflow-hidden p-8 flex flex-col">
+        {activeTab === 'prazos' ? (
+          <ControlePrazos 
+            acoes={filteredAcoes}
+            atividades={filteredAtividades}
+            subatividades={filteredSubatividades}
+            session={session}
+            onDataChanged={() => loadData(false)}
+            onTaskClick={handleNotificationClick}
+            headerAction={
+              <div className="flex items-center gap-4 bg-slate-900 border border-slate-800 rounded-full shadow-sm pl-4 pr-1 py-1">
+                <span className="text-[10px] font-bold text-slate-500 uppercase tracking-widest hidden sm:block">Notificações</span>
+                <Notifications session={session} atividades={atividades} subatividades={subatividades} onNotificationClick={handleNotificationClick} />
+              </div>
+            }
+          />
+        ) : activeTab === 'dashboard' ? (
           <Dashboard 
             acoes={filteredAcoes} 
             atividades={filteredAtividades} 
             subatividades={filteredSubatividades} 
+            headerAction={
+              <div className="flex items-center gap-4 bg-slate-900 border border-slate-800 rounded-full shadow-sm pl-4 pr-1 py-1">
+                <span className="text-[10px] font-bold text-slate-500 uppercase tracking-widest hidden sm:block">Notificações</span>
+                <Notifications session={session} atividades={atividades} subatividades={subatividades} onNotificationClick={handleNotificationClick} />
+              </div>
+            }
           />
         ) : (
           <HierarchyView 
             acoes={filteredAcoes} 
             atividades={filteredAtividades} 
-            subatividades={filteredSubatividades} 
+            subatividades={filteredSubatividades}
+            targetHighlight={targetHighlight} 
             onUpdateSubatividadeStatus={handleUpdateSubatividadeStatus}
             onAddSubatividade={handleAddSubatividade}
             onDataChanged={() => loadData(false)}
+            headerAction={
+              <div className="flex items-center gap-4 bg-slate-900 border border-slate-800 rounded-full shadow-sm pl-4 pr-1 py-1">
+                <span className="text-[10px] font-bold text-slate-500 uppercase tracking-widest hidden sm:block">Notificações</span>
+                <Notifications session={session} atividades={atividades} subatividades={subatividades} onNotificationClick={handleNotificationClick} />
+              </div>
+            }
           />
         )}
+        </div>
       </main>
 
       <UserProfileModal 
