@@ -47,3 +47,23 @@ body.theme-oled {
   --color-slate-100: #f4f4f5;
   --color-slate-50:  #fafafa;
 }
+
+@media print {
+  @page { 
+    size: A4 landscape; 
+    margin: 10mm;
+  }
+  
+  body.print-mode {
+    background-color: white !important;
+  }
+
+  body.print-mode > div:not(.fixed) {
+    display: none !important;
+  }
+
+  .print-break-inside-avoid {
+    page-break-inside: avoid;
+    break-inside: avoid;
+  }
+}

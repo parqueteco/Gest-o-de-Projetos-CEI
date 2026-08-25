@@ -122,8 +122,8 @@ export function ControlePrazos({ acoes, atividades, subatividades, session, onDa
       if (acaoId) {
         const acao = acoes.find(a => a.IDAcao === acaoId);
         if (acao) {
-          acaoNome = acao.Acao || '';
-          metaNome = acao.IDMeta || '';
+          acaoNome = acao.NomeAcao || '';
+          metaNome = acao.MetaFinep || '';
         }
       }
 

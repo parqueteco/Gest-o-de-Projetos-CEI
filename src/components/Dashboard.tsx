@@ -1,4 +1,4 @@
-import { useState, useMemo } from 'react';
+import React, { useState, useMemo } from 'react';
 import { PieChart, Pie, Cell, Tooltip, Legend, BarChart, Bar, XAxis, YAxis, CartesianGrid, ResponsiveContainer } from 'recharts';
 import { Acao, Atividade, Subatividade } from '../types';
 
@@ -77,7 +77,7 @@ export default function Dashboard({ acoes, atividades, subatividades, headerActi
       return acc;
     }, {} as Record<string, any>);
 
-    return Object.values(respMap).sort((a, b) => b.Total - a.Total);
+    return (Object.values(respMap) as {Total: number, [key: string]: any}[]).sort((a, b) => b.Total - a.Total);
   }, [combinedTasks]);
 
   const STATUS_COLORS: Record<string, string> = {

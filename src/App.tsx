@@ -22,13 +22,17 @@ import {
 } from 'lucide-react';
 import { Acao, Atividade, Subatividade } from './types';
 import Dashboard, { isLate } from './components/Dashboard';
+import { ReportPreview } from './components/ReportPreview';
 import HierarchyView from './components/HierarchyView';
-import { ControlePrazos } from './components/ControlePrazos';
 import { ControlePrazos } from './components/ControlePrazos';
 import { supabase } from './lib/supabaseClient';
 import { Login } from './components/Login';
 import { UserProfileModal } from './components/UserProfileModal';
 import { Notifications } from './components/Notifications';
+import { ExportModal } from './components/ExportModal';
+
+import { Download } from 'lucide-react';
+
 
 export interface TargetHighlight {
   acaoId: string | null;
@@ -46,6 +50,9 @@ export default function App() {
   const [session, setSession] = useState<Session | null>(null);
   const [authChecking, setAuthChecking] = useState(true);
   const [isProfileModalOpen, setIsProfileModalOpen] = useState(false);
+    const [isExportModalOpen, setIsExportModalOpen] = useState(false);
+  
+
   
   useEffect(() => {
     supabase.auth.getSession().then(({ data: { session } }) => {
@@ -66,7 +73,10 @@ export default function App() {
     await supabase.auth.signOut();
   };
 
-  const [activeTab, setActiveTab] = useState<'dashboard' | 'hierarchy' | 'prazos'>('dashboard');
+  const [activeTab, setActiveTab] = useState<'dashboard' | 'hierarchy' | 'prazos' | 'report_preview'>('dashboard');
+  const [previousTab, setPreviousTab] = useState<'dashboard' | 'hierarchy' | 'prazos'>('dashboard');
+  const [reportConfig, setReportConfig] = useState<any>(null);
+  
   const [targetHighlight, setTargetHighlight] = useState<TargetHighlight | null>(null);
 
   const handleNotificationClick = (acaoId: string | null, atividadeId: string | null, subatividadeId: string | null, comentarioId: string | null = null) => {
@@ -156,14 +166,15 @@ export default function App() {
       setAtividades(mappedAtividades);
       setSubatividades(mappedSubatividades);
     } catch (error: any) {
-      console.error("Error loading Supabase data:", error);
-      
       // Handle JWT issued at future error (clock skew between auth and db)
-      if (error.code === 'PGRST303' && retryCount < 3) {
-        console.log(`Retrying loadData due to PGRST303 (attempt ${retryCount + 1})...`);
-        setTimeout(() => loadData(false, retryCount + 1), 1000);
-        return;
+      if (error?.code === 'PGRST303' || error?.message?.includes('JWT issued at future')) {
+        if (retryCount < 5) {
+          console.warn(`Retrying loadData due to PGRST303 (attempt ${retryCount + 1})...`);
+          setTimeout(() => loadData(false, retryCount + 1), 2500);
+          return;
+        }
       }
+      console.error("Error loading Supabase data:", error);
       
       alert("Erro ao carregar dados do banco de dados.");
     } finally {
@@ -618,9 +629,19 @@ export default function App() {
             onDataChanged={() => loadData(false)}
             onTaskClick={handleNotificationClick}
             headerAction={
-              <div className="flex items-center gap-4 bg-slate-900 border border-slate-800 rounded-full shadow-sm pl-4 pr-1 py-1">
-                <span className="text-[10px] font-bold text-slate-500 uppercase tracking-widest hidden sm:block">Notificações</span>
-                <Notifications session={session} atividades={atividades} subatividades={subatividades} onNotificationClick={handleNotificationClick} />
+              <div className="flex items-center gap-3">
+                <button
+                  onClick={() => setIsExportModalOpen(true)}
+                  className="flex items-center gap-2 bg-slate-900 hover:bg-slate-800 border border-slate-800 hover:border-slate-700 rounded-full shadow-sm px-3 py-1.5 transition-colors text-slate-400 hover:text-sky-400"
+                  title="Exportar Relatório Executivo"
+                >
+                  <Download className="w-4 h-4" />
+                  <span className="text-[10px] font-bold uppercase tracking-widest hidden sm:block">Exportar</span>
+                </button>
+                <div className="flex items-center gap-4 bg-slate-900 border border-slate-800 rounded-full shadow-sm pl-4 pr-1 py-1">
+                  <span className="text-[10px] font-bold text-slate-500 uppercase tracking-widest hidden sm:block">Notificações</span>
+                  <Notifications session={session} atividades={atividades} subatividades={subatividades} onNotificationClick={handleNotificationClick} />
+                </div>
               </div>
             }
           />
@@ -630,9 +651,19 @@ export default function App() {
             atividades={filteredAtividades} 
             subatividades={filteredSubatividades} 
             headerAction={
-              <div className="flex items-center gap-4 bg-slate-900 border border-slate-800 rounded-full shadow-sm pl-4 pr-1 py-1">
-                <span className="text-[10px] font-bold text-slate-500 uppercase tracking-widest hidden sm:block">Notificações</span>
-                <Notifications session={session} atividades={atividades} subatividades={subatividades} onNotificationClick={handleNotificationClick} />
+              <div className="flex items-center gap-3">
+                <button
+                  onClick={() => setIsExportModalOpen(true)}
+                  className="flex items-center gap-2 bg-slate-900 hover:bg-slate-800 border border-slate-800 hover:border-slate-700 rounded-full shadow-sm px-3 py-1.5 transition-colors text-slate-400 hover:text-sky-400"
+                  title="Exportar Relatório Executivo"
+                >
+                  <Download className="w-4 h-4" />
+                  <span className="text-[10px] font-bold uppercase tracking-widest hidden sm:block">Exportar</span>
+                </button>
+                <div className="flex items-center gap-4 bg-slate-900 border border-slate-800 rounded-full shadow-sm pl-4 pr-1 py-1">
+                  <span className="text-[10px] font-bold text-slate-500 uppercase tracking-widest hidden sm:block">Notificações</span>
+                  <Notifications session={session} atividades={atividades} subatividades={subatividades} onNotificationClick={handleNotificationClick} />
+                </div>
               </div>
             }
           />
@@ -646,15 +677,54 @@ export default function App() {
             onAddSubatividade={handleAddSubatividade}
             onDataChanged={() => loadData(false)}
             headerAction={
-              <div className="flex items-center gap-4 bg-slate-900 border border-slate-800 rounded-full shadow-sm pl-4 pr-1 py-1">
-                <span className="text-[10px] font-bold text-slate-500 uppercase tracking-widest hidden sm:block">Notificações</span>
-                <Notifications session={session} atividades={atividades} subatividades={subatividades} onNotificationClick={handleNotificationClick} />
+              <div className="flex items-center gap-3">
+                <button
+                  onClick={() => setIsExportModalOpen(true)}
+                  className="flex items-center gap-2 bg-slate-900 hover:bg-slate-800 border border-slate-800 hover:border-slate-700 rounded-full shadow-sm px-3 py-1.5 transition-colors text-slate-400 hover:text-sky-400"
+                  title="Exportar Relatório Executivo"
+                >
+                  <Download className="w-4 h-4" />
+                  <span className="text-[10px] font-bold uppercase tracking-widest hidden sm:block">Exportar</span>
+                </button>
+                <div className="flex items-center gap-4 bg-slate-900 border border-slate-800 rounded-full shadow-sm pl-4 pr-1 py-1">
+                  <span className="text-[10px] font-bold text-slate-500 uppercase tracking-widest hidden sm:block">Notificações</span>
+                  <Notifications session={session} atividades={atividades} subatividades={subatividades} onNotificationClick={handleNotificationClick} />
+                </div>
               </div>
             }
           />
         )}
         </div>
       </main>
+
+      <ExportModal
+        isOpen={isExportModalOpen}
+        onClose={() => setIsExportModalOpen(false)}
+        acoes={acoes}
+        atividades={atividades}
+        subatividades={subatividades}
+        onGenerateReport={(printData, pilarFilter, metaFilter, respFilter, includeLogs) => {
+          setReportConfig({ printData, pilarFilter, metaFilter, respFilter, includeLogs });
+          setIsExportModalOpen(false);
+          setPreviousTab(activeTab as any);
+          setActiveTab('report_preview');
+        }}
+      />
+      
+      {activeTab === 'report_preview' && reportConfig && (
+        <ReportPreview
+          printData={reportConfig.printData}
+          pilarFilter={reportConfig.pilarFilter}
+          metaFilter={reportConfig.metaFilter}
+          respFilter={reportConfig.respFilter}
+          includeLogs={reportConfig.includeLogs}
+          onClose={() => {
+            setActiveTab(previousTab);
+            setReportConfig(null);
+            document.body.style.overflow = 'unset';
+          }}
+        />
+      )}
 
       <UserProfileModal 
         session={session!} 

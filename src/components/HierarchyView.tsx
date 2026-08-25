@@ -352,7 +352,7 @@ export default function HierarchyView({ acoes, atividades, subatividades, onUpda
       </div>
 
       <div className="space-y-6">
-        {Object.entries(acoesByPilar).map(([pilarName, pilarAcoes]) => (
+        {Object.entries(acoesByPilar).map(([pilarName, pilarAcoes]: [string, Acao[]]) => (
           <div key={pilarName} className="flex flex-col gap-3">
             {/* Pilar Header - FIXO na tela e sem sanfona */}
             <div className="bg-slate-900/60 border border-slate-700/50 p-4 rounded-lg flex items-center justify-between shadow-sm">
